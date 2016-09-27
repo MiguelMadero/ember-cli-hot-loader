@@ -1,5 +1,26 @@
 /* globals require */
 
+import Ember from 'ember';
+
+const { RSVP: {all, Promise}, run } = Ember;
+
+function reloadScript (scriptPath) {
+  var tags = document.getElementsByTagName('script');
+  for (var i = tags.length; i >= 0; i--){
+    if (tags[i] && tags[i].getAttribute('src') != null && tags[i].getAttribute('src').indexOf(scriptPath) !== -1) {
+      tags[i].parentNode.removeChild(tags[i]);
+    }
+  }
+  return new Promise(function (resolve, reject) {
+    var script = document.createElement('script');
+    script.onload = () => run.later(() => resolve, 10);
+    script.onerror = () => run.later(() => reject, 10);
+    script.type = 'text/javascript';
+    script.src = scriptPath;
+    document.body.appendChild(script);
+  });
+}
+
 function createPlugin (appName, hotReloadService) {
 
   function Plugin (window, host) {
@@ -15,22 +36,10 @@ function createPlugin (appName, hotReloadService) {
       // Reloading app.js will fire Application.create unless we set this.
       // TODO: make sure this doesn't break tests
       window.runningTests = true;
-      var tags = document.getElementsByTagName('script');
-      for (var i = tags.length; i >= 0; i--){
-        if (tags[i] && tags[i].getAttribute('src') != null && tags[i].getAttribute('src').indexOf(appName) !== -1) {
-          tags[i].parentNode.removeChild(tags[i]);
-        }
-      }
-      var script = document.createElement('script');
-      script.onload = function() {
-        setTimeout(function() {
-          window.runningTests = false;
-          hotReloadService.trigger('willHotReload', path);
-        }, 10);
-      };
-      script.type = 'text/javascript';
-      script.src = `/assets/${appName}.js`;
-      document.body.appendChild(script);
+      all([reloadScript(`/assets/${appName}.js`), reloadScript('/assets/vendor.js')]).then(()=>{
+        window.runningTests = false;
+        hotReloadService.trigger('willHotReload', path);
+      });
 
       return true;
     }
