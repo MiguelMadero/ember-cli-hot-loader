@@ -1,3 +1,5 @@
+/* globals require */
+
 function createPlugin (appName, hotReloadService) {
 
   function Plugin (window, host) {
@@ -51,10 +53,13 @@ function lookup (appInstance, fullName) {
 }
 
 function getAppName (appInstance) {
+  if (require._eak_seen['dummy/config/environment']) {
+    // if we have the dummy/config, we're running the dummy app and the main bundle is dummy.js
+    return 'dummy';
+  }
   if (appInstance.base) {
     return appInstance.base.name;
   }
-  // TODO: would this work in 2.4+?
   return appInstance.application.name;
 }
 
@@ -63,10 +68,7 @@ export function initialize(appInstance) {
     return;
   }
   let appName = getAppName(appInstance);
-  if (appName === 'ember-cli-hot-loader') {
-    // TODO: find a better way to support other addons using the dummy app
-    appName = 'dummy';
-  }
+
   const Plugin = createPlugin(appName, lookup(appInstance, 'service:hot-reload'));
   window.LiveReload.addPlugin(Plugin);
 }
